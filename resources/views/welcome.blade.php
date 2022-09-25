@@ -3,6 +3,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="csrf-token" content="{{ csrf_token() }}" />
 
         <title>PHP EXAM</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.0/dist/css/bootstrap.min.css" integrity="sha384-gH2yIJqKdNHPEq0n4Mqa/HGKIhSkIHeL5AyhkYV8i59U5AR6csBvApHHNl/vI1Bx" crossorigin="anonymous">
@@ -24,16 +25,16 @@
         <div class="relative flex items-top justify-center min-h-screen bg-gray-100 dark:bg-gray-900 sm:items-center py-4 sm:pt-0">
             <div class="row">
                 <div class="col-12">
-                    <form class="form" method="post">
-                        Product Name : <input class="form-control" name="prod_name" id="prod_name">
-                        Quantity in Stock : <input  class="form-control" name="qty_stock" id="qty_stock">
-                        Price Per Item : <input class="form-control" name="item_price" id="item_price">
+                    <form id="form_product" class="form" method="post">
+                        Product Name : <input class="form-control" name="product_name" id="product_name">
+                        Quantity in Stock : <input  class="form-control" name="product_qty" id="product_qty">
+                        Price Per Item : <input class="form-control" name="product_price" id="product_price">
 
                         <button type="button" class="btn btn-success mt-3" id="btn-submit">Submit</button>
                     </form>
                 </div>
                 <div class="col-12 mt-5">
-                    <table class="table ">
+                    <table id="tbl_products" class="table">
                         <thead>
                             <tr>
                                 <th>Product Name</th>
@@ -41,21 +42,110 @@
                                 <th>Price Per Item</th>
                                 <th>Datetime Submitted</th>
                                 <th>Total Value Number</th>
-                            </tr>
-                            <tr>
-                                <th colspan="4">Total Sum : </th>
+                                <th>Action</th>
                             </tr>
                         </thead>
+                        <tbody>
+                            <tr>
+                                <td class="text-center" colspan="5">No data</td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th class="text-right " colspan="4">Total Sum : </th>
+                                <th><span id="totalSum" class="text-lg">0</span></th>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
             </div>
         </div>
 
+        <!-- Modal -->
+        <div class="modal fade" id="modalUpdate" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+          <div class="modal-dialog" role="document">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalLabel">Update Information</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+              </div>
+              <div class="modal-body">
+                <form id="form_product" class="form" method="post">
+                    Product Name : <input class="form-control" name="update_product_name" id="update_product_name">
+                    Quantity in Stock : <input  class="form-control" name="update_product_qty" id="update_product_qty">
+                    Price Per Item : <input class="form-control" name="update_product_price" id="update_product_price">
+
+                    <button type="button" class="btn btn-success mt-3" id="btn-submit">Submit</button>
+                </form>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary">Save changes</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <script>
             $(document).ready(function(){
+
+                $.ajaxSetup({
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    }
+                });
+
+                getProducts();
+
+                function getProducts() {
+                    $.ajax({
+                        url : "{{route('products.get_products')}}",
+                        type: "post",
+                        success:function(res) {
+                            var tbl = $("#tbl_products tbody");
+                            var out = "";
+                            if(res) {
+                                var total = 0;
+                                $.each(res.products, function(i,v) {
+                                    var subtotal = parseFloat(v.qty * v.price);
+                                    out += `
+                                        <tr>
+                                            <td>`+ v.name +`</td>
+                                            <td>`+ v.qty +`</td>
+                                            <td>`+ v.price +`</td>
+                                            <td>`+ v.date +`</td>
+                                            <td>`+ subtotal +`</td>
+                                            <td><a class="btn btn-success btn-sm" 
+                                                id=` +v.id+ `> Edit</a></td>
+                                        </tr>
+                                    `;
+                                    total += subtotal;
+                                })
+                                $("#totalSum").text(total)
+                                tbl.empty().append(out);
+                            }
+                        }
+                    })
+                }
                 
                 $('#btn-submit').on('click', function(){
-                    
+                    try {
+                        $.ajax({
+                            url : "{{route('products.add_products')}}",
+                            type: "post",
+                            data: $("#form_product").serialize(),
+                            success:function(res) {
+                                if(res.success) {
+                                    alert("Added!");
+                                    getProducts();
+                                }
+                            }
+                        })
+                    } catch(err) {
+                        console.log(err);
+                    }
                 })
             })
         </script>
